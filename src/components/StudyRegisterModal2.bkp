@@ -1,0 +1,562 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { getJsonContent } from '../app/actions';
+import { useData } from '@/context/DataContext';
+import { StudyRecord } from '@/context/DataContext';
+
+// Tipos de dados
+interface Subject {
+  subject: string;
+  topics: { topic_text: string }[];
+}
+
+interface Video {
+  title: string;
+  start: string;
+  end: string;
+}
+
+interface Page {
+  start: number;
+  end: number;
+}
+
+interface Question {
+  correct: number;
+  incorrect: number;
+}
+
+interface StudyRegisterModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (record: StudyRecord) => void;
+  initialRecord?: StudyRecord | null;
+}
+
+const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  initialRecord,
+}) => {
+  // Formatação de tempo (pode ser movida para um arquivo de utilitários)
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const pad = (num: number) => num.toString().padStart(2, '0');
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  };
+
+  const { selectedDataFile, deleteStudyRecord } = useData();
+  
+  // Estados do formulário
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [selectedSubject, setSelectedSubject] = useState(initialRecord?.subject || '');
+  const [topics, setTopics] = useState<{ topic_text: string }[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState(initialRecord?.topic || '');
+  const [isTeoriaFinalizada, setIsTeoriaFinalizada] = useState(initialRecord?.teoriaFinalizada || false);
+  const [countInPlanning, setCountInPlanning] = useState(initialRecord?.countInPlanning || false);
+  const [selectedCategory, setSelectedCategory] = useState(initialRecord?.category || '');
+  const [studyTime, setStudyTime] = useState(initialRecord?.studyTime ? formatTime(initialRecord.studyTime) : "00:00:00");
+  const [isReviewSchedulingEnabled, setIsReviewSchedulingEnabled] = useState(!!initialRecord?.reviewPeriods && initialRecord.reviewPeriods.length > 0);
+  const [reviewPeriods, setReviewPeriods] = useState<string[]>(initialRecord?.reviewPeriods || []);
+  const [selectedDate, setSelectedDate] = useState(initialRecord?.date || new Date().toISOString().split('T')[0]);
+  const [questions, setQuestions] = useState<Question[]>(initialRecord?.correctQuestions !== undefined ? [{ correct: initialRecord.correctQuestions, incorrect: initialRecord.incorrectQuestions }] : [{ correct: 0, incorrect: 0 }]);
+  const [pages, setPages] = useState<Page[]>(initialRecord?.pages || [{ start: 0, end: 0 }]);
+  const [videos, setVideos] = useState<Video[]>(initialRecord?.videos || [{ title: '', start: '00:00:00', end: '00:00:00' }]);
+  const [material, setMaterial] = useState(initialRecord?.material || '');
+  const [comments, setComments] = useState(initialRecord?.comments || '');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Resetar estados quando o registro inicial mudar
+  useEffect(() => {
+    if (initialRecord) {
+      setSelectedSubject(initialRecord.subject);
+      setSelectedTopic(initialRecord.topic);
+      setIsTeoriaFinalizada(initialRecord.teoriaFinalizada || false);
+      setSelectedCategory(initialRecord.category);
+      setStudyTime(formatTime(initialRecord.studyTime));
+      setIsReviewSchedulingEnabled(!!initialRecord.reviewPeriods && initialRecord.reviewPeriods.length > 0);
+      setReviewPeriods(initialRecord.reviewPeriods || []);
+      setSelectedDate(initialRecord.date);
+      setQuestions([{ correct: initialRecord.correctQuestions, incorrect: initialRecord.incorrectQuestions }]);
+      setPages(initialRecord.pages || [{ start: 0, end: 0 }]);
+      setVideos(initialRecord.videos || [{ title: '', start: '00:00:00', end: '00:00:00' }]);
+      setMaterial(initialRecord.material);
+      setComments(initialRecord.comments);
+    } else {
+      resetForm();
+    }
+  }, [initialRecord]);
+
+  // Carregar dados do edital
+  useEffect(() => {
+    const fetchEditalData = async () => {
+      if (selectedDataFile) {
+        try {
+          const data = await getJsonContent(selectedDataFile);
+          if (Array.isArray(data)) {
+            setSubjects(data);
+          } else if (data && typeof data === 'object' && Array.isArray(data.subjects)) {
+            setSubjects(data.subjects);
+          } else {
+            setSubjects([]);
+          }
+        } catch (error) {
+          console.error('Error fetching edital data:', error);
+          setSubjects([]);
+        }
+      } else {
+        setSubjects([]);
+      }
+    };
+
+    fetchEditalData();
+  }, [selectedDataFile]);
+
+  // Atualizar tópicos quando a matéria mudar
+  useEffect(() => {
+    if (selectedSubject) {
+      const subjectData = subjects.find(s => s.subject === selectedSubject);
+      setTopics(subjectData ? subjectData.topics : []);
+      if (!initialRecord?.topic) {
+        setSelectedTopic('');
+      }
+    } else {
+      setTopics([]);
+      setSelectedTopic('');
+    }
+  }, [selectedSubject, subjects, initialRecord?.topic]);
+
+  // Resetar formulário
+  const resetForm = () => {
+    setSelectedSubject('');
+    setSelectedTopic('');
+    setIsTeoriaFinalizada(false);
+    setSelectedCategory('');
+    setStudyTime("00:00:00");
+    setIsReviewSchedulingEnabled(false);
+    setReviewPeriods([]);
+    setSelectedDate(new Date().toISOString().split('T')[0]);
+    setQuestions([{ correct: 0, incorrect: 0 }]);
+    setPages([{ start: 0, end: 0 }]);
+    setVideos([{ title: '', start: '00:00:00', end: '00:00:00' }]);
+    setMaterial('');
+    setComments('');
+    setErrors({});
+  };
+
+  // Adicionar par de páginas
+  const addPagePair = () => {
+    setPages([...pages, { start: 0, end: 0 }]);
+  };
+
+  // Adicionar linha de vídeo
+  const addVideoRow = () => {
+    setVideos([...videos, { title: '', start: '00:00:00', end: '00:00:00' }]);
+  };
+
+  // Converter tempo string (HH:MM:SS) para milissegundos
+  const parseTime = (timeStr: string): number => {
+    const parts = timeStr.split(':').map(Number);
+    if (parts.length === 3) {
+      return (parts[0] * 3600 + parts[1] * 60 + parts[2]) * 1000;
+    }
+    if (parts.length === 2) {
+      return (parts[0] * 60 + parts[1]) * 1000;
+    }
+    return 0;
+  };
+
+  // Validar formulário
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!selectedSubject) newErrors.subject = 'Selecione uma disciplina';
+    if (!selectedCategory) newErrors.category = 'Selecione uma categoria';
+    if (!studyTime || studyTime === '00:00:00') newErrors.studyTime = 'Informe o tempo de estudo';
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Manipulador de salvamento
+  const handleSave = () => {
+    if (!validateForm()) return;
+
+    const studyRecord: StudyRecord = {
+      id: initialRecord?.id || Date.now().toString(),
+      date: selectedDate,
+      subject: selectedSubject,
+      topic: selectedTopic,
+      studyTime: parseTime(studyTime),
+      correctQuestions: questions[0].correct,
+      incorrectQuestions: questions[0].incorrect,
+      material: material,
+      category: selectedCategory,
+      comments: comments,
+      reviewPeriods: isReviewSchedulingEnabled ? reviewPeriods : undefined,
+      teoriaFinalizada: isTeoriaFinalizada,
+      countInPlanning: countInPlanning,
+      pages: pages,
+      videos: videos,
+    };
+
+    onSave(studyRecord);
+    onClose();
+  };
+
+  // Manipulador de exclusão
+  const handleDelete = () => {
+    if (initialRecord && window.confirm('Tem certeza que deseja excluir este registro?')) {
+      deleteStudyRecord(initialRecord.id);
+      onClose();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center p-4 border-b border-green-200 bg-green-50">
+          <h2 className="text-xl font-bold text-green-800">Registro de Estudo</h2>
+          <button onClick={onClose} className="text-green-600 hover:text-green-800 text-2xl font-bold">
+            &times;
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 space-y-6">
+          {/* Date Selection */}
+          <div className="flex flex-col space-y-4 mb-4">
+            <label className="block text-sm font-medium text-gray-700">Data do Estudo</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="py-2 px-4 rounded-lg font-semibold border border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500"
+            />
+          </div>
+
+          {/* Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Categoria */}
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700">Categoria</label>
+              <select
+                id="category"
+                className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-2 ${errors.category ? 'border-red-500' : 'border-green-500'} focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md`}
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                <option value="" disabled>Selecione...</option>
+                <option value="teoria">Teoria</option>
+                <option value="revisao">Revisão</option>
+                <option value="questoes">Questões</option>
+                <option value="leitura_lei">Leitura de Lei</option>
+                <option value="jurisprudencia">Jurisprudência</option>
+              </select>
+              {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
+            </div>
+
+            {/* Disciplina */}
+            <div>
+              <label htmlFor="subject" className="block text-sm font-medium text-gray-700">Disciplina</label>
+              <select
+                id="subject"
+                className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-2 ${errors.subject ? 'border-red-500' : 'border-green-500'} focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md`}
+                value={selectedSubject}
+                onChange={(e) => setSelectedSubject(e.target.value)}
+              >
+                <option value="" disabled>Selecione...</option>
+                {subjects.map((sub, index) => (
+                  <option key={index} value={sub.subject}>{sub.subject}</option>
+                ))}
+              </select>
+              {errors.subject && <p className="mt-1 text-sm text-red-600">{errors.subject}</p>}
+            </div>
+
+            {/* Tempo de Estudo */}
+            <div>
+              <label htmlFor="studyTime" className="block text-sm font-medium text-gray-700">Tempo de Estudo</label>
+              <input
+                type="text"
+                id="studyTime"
+                value={studyTime}
+                onChange={(e) => setStudyTime(e.target.value)}
+                className={`mt-1 block w-full border ${errors.studyTime ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm`}
+                placeholder="HH:MM:SS"
+              />
+              {errors.studyTime && <p className="mt-1 text-sm text-red-600">{errors.studyTime}</p>}
+            </div>
+
+            {/* Tópico */}
+            <div className="md:col-span-2">
+              <label htmlFor="topic" className="block text-sm font-medium text-gray-700">Tópico</label>
+              <select
+                id="topic"
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-2 border-green-500 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md"
+                value={selectedTopic}
+                onChange={(e) => setSelectedTopic(e.target.value)}
+              >
+                <option value="" disabled>Selecione...</option>
+                {topics.map((top, index) => (
+                  <option key={index} value={top.topic_text}>{top.topic_text}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Material */}
+            <div>
+              <label htmlFor="material" className="block text-sm font-medium text-gray-700">Material</label>
+              <input
+                type="text"
+                id="material"
+                placeholder="Ex.: Aula 01"
+                value={material}
+                onChange={(e) => setMaterial(e.target.value)}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Checkboxes */}
+          <div className="flex flex-col space-y-2 mt-4">
+            <div className="flex justify-between w-full">
+              <div className="flex items-center">
+                <input 
+                  id="teoriaFinalizada" 
+                  type="checkbox" 
+                  className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded" 
+                  checked={isTeoriaFinalizada}
+                  onChange={(e) => setIsTeoriaFinalizada(e.target.checked)}
+                />
+                <label htmlFor="teoriaFinalizada" className="ml-2 block text-sm text-gray-900">Teoria Finalizada</label>
+              </div>
+              <div className="flex items-center">
+                <input 
+                  id="countInPlanning" 
+                  type="checkbox" 
+                  className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded" 
+                  checked={countInPlanning}
+                  onChange={(e) => setCountInPlanning(e.target.checked)}
+                />
+                <label htmlFor="countInPlanning" className="ml-2 block text-sm text-gray-900">Contabilizar no Planejamento</label>
+              </div>
+            </div>
+            <div className="flex items-center">
+              <input
+                id="programarRevisoes"
+                type="checkbox"
+                className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                checked={isReviewSchedulingEnabled}
+                onChange={(e) => setIsReviewSchedulingEnabled(e.target.checked)}
+              />
+              <label htmlFor="programarRevisoes" className="ml-2 block text-sm text-gray-900">Programar Revisões</label>
+            </div>
+          </div>
+
+          {isReviewSchedulingEnabled && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {reviewPeriods.map((period, index) => (
+                <span key={index} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold flex items-center">
+                  {period}
+                  <button onClick={() => setReviewPeriods(prev => prev.filter((_, i) => i !== index))} className="ml-2 text-green-600 hover:text-green-800">
+                    &times;
+                  </button>
+                </span>
+              ))}
+              <div className="ml-2">
+                <button
+                  onClick={() => {
+                    const days = prompt('Quantos dias para a revisão? (ex: 1, 7, 15)');
+                    if (days && !isNaN(parseInt(days))) {
+                      setReviewPeriods(prev => [...prev, `${parseInt(days)}d`]);
+                    } else if (days !== null) {
+                      alert('Por favor, insira um número válido de dias.');
+                    }
+                  }}
+                  className="bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-2 rounded-full text-xs"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Questões */}
+            <div className="border border-green-300 p-4 rounded-md md:col-span-1">
+              <h3 className="text-lg font-semibold text-green-800 mb-3">Questões</h3>
+              {questions.map((q, index) => (
+                <div key={index} className="flex space-x-2 mb-2 w-full">
+                  <div className="flex-1">
+                    <label htmlFor={`acertos-${index}`} className="block text-sm font-medium text-gray-700">Acertos</label>
+                    <input
+                      type="number"
+                      id={`acertos-${index}`}
+                      value={q.correct}
+                      onChange={(e) => {
+                        const newQuestions = [...questions];
+                        newQuestions[index].correct = parseInt(e.target.value) || 0;
+                        setQuestions(newQuestions);
+                      }}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label htmlFor={`erros-${index}`} className="block text-sm font-medium text-gray-700">Erros</label>
+                    <input
+                      type="number"
+                      id={`erros-${index}`}
+                      value={q.incorrect}
+                      onChange={(e) => {
+                        const newQuestions = [...questions];
+                        newQuestions[index].incorrect = parseInt(e.target.value) || 0;
+                        setQuestions(newQuestions);
+                      }}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Páginas */}
+            <div className="border border-green-300 p-4 rounded-md md:col-span-1 relative">
+              <h3 className="text-lg font-semibold text-green-800 mb-3">Páginas</h3>
+              {pages.map((p, index) => (
+                <div key={index} className="flex space-x-2 mb-2 w-full">
+                  <div className="flex-1">
+                    <label htmlFor={`inicio-${index}`} className="block text-sm font-medium text-gray-700">Início</label>
+                    <input
+                      type="number"
+                      id={`inicio-${index}`}
+                      value={p.start}
+                      onChange={(e) => {
+                        const newPages = [...pages];
+                        newPages[index].start = parseInt(e.target.value) || 0;
+                        setPages(newPages);
+                      }}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label htmlFor={`fim-${index}`} className="block text-sm font-medium text-gray-700">Fim</label>
+                    <input
+                      type="number"
+                      id={`fim-${index}`}
+                      value={p.end}
+                      onChange={(e) => {
+                        const newPages = [...pages];
+                        newPages[index].end = parseInt(e.target.value) || 0;
+                        setPages(newPages);
+                      }}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+              ))}
+              <button onClick={addPagePair} className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-2 rounded-full text-xs z-10">
+                +
+              </button>
+            </div>
+
+            {/* Vídeo/Aulas */}
+            <div className="border border-green-300 p-4 rounded-md md:col-span-2 relative">
+              <h3 className="text-lg font-semibold text-green-800 mb-3">Vídeo/Aulas</h3>
+              {videos.map((v, index) => (
+                <div key={index} className="grid grid-cols-3 gap-2 mb-2">
+                  <div>
+                    <label htmlFor={`video-title-${index}`} className="block text-sm font-medium text-gray-700">Título</label>
+                    <input
+                      type="text"
+                      id={`video-title-${index}`}
+                      value={v.title}
+                      onChange={(e) => {
+                        const newVideos = [...videos];
+                        newVideos[index] = { ...newVideos[index], title: e.target.value };
+                        setVideos(newVideos);
+                      }}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={`video-start-${index}`} className="block text-sm font-medium text-gray-700">Início</label>
+                    <input
+                      type="text"
+                      id={`video-start-${index}`}
+                      value={v.start}
+                      onChange={(e) => {
+                        const newVideos = [...videos];
+                        newVideos[index] = { ...newVideos[index], start: e.target.value };
+                        setVideos(newVideos);
+                      }}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={`video-end-${index}`} className="block text-sm font-medium text-gray-700">Fim</label>
+                    <input
+                      type="text"
+                      id={`video-end-${index}`}
+                      value={v.end}
+                      onChange={(e) => {
+                        const newVideos = [...videos];
+                        newVideos[index] = { ...newVideos[index], end: e.target.value };
+                        setVideos(newVideos);
+                      }}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+              ))}
+              <button onClick={addVideoRow} className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-2 rounded-full text-xs z-10">
+                +
+              </button>
+            </div>
+          </div>
+
+          {/* Comentários */}
+          <div>
+            <label htmlFor="comments" className="block text-sm font-medium text-gray-700">Comentários</label>
+            <textarea
+              id="comments"
+              rows={3}
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+            ></textarea>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-between items-center p-4 border-t border-green-200 bg-green-50 space-x-4">
+          <div className="flex items-center">
+            <input id="saveAndCreateNew" type="checkbox" className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded" />
+            <label htmlFor="saveAndCreateNew" className="ml-2 block text-sm text-gray-900">Salvar e Criar Novo</label>
+          </div>
+          {initialRecord && (
+            <button onClick={handleDelete} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">
+              Excluir
+            </button>
+          )}
+          <button onClick={onClose} className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">
+            Cancelar
+          </button>
+          <button onClick={handleSave} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">
+            Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default StudyRegisterModal;
