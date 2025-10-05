@@ -28,6 +28,12 @@ Assista a uma breve introdução da aplicação e suas funcionalidades no vídeo
 
 **[➡️ Assistir à introdução no YouTube](https://youtu.be/nKAGOVKF7A8?si=D0Oa3fFRNpJWIz3W)**
 
+## 📥 Download
+
+A versão mais recente da aplicação para desktop (Windows e Linux) pode ser baixada aqui:
+
+**[➡️ Baixar Ouroboros v1.1.0](https://drive.google.com/drive/folders/11sRwz3AJHYYy7S5gK6Up_3oEkFQSHd0J?usp=sharing)**
+
 ## ✨ Funcionalidades
 
 - **Planejamento de Estudos por Ciclos:** Crie e gerencie ciclos de estudo com base em editais ou objetivos específicos.
