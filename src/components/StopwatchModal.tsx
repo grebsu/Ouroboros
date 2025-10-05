@@ -77,9 +77,23 @@ const StopwatchModal: React.FC<StopwatchModalProps> = ({ isOpen, onClose, onSave
       electronAPI.removeTimerTickListeners();
 
       // Ouve os ticks do processo principal
-      electronAPI.onTimerTick((currentElapsedTime) => {
-        setTime(currentElapsedTime);
-      });
+      const handleTick = (currentElapsedTime: number) => {
+        if (mode === 'timer') {
+          const remainingTime = initialTimerTime - currentElapsedTime;
+          if (remainingTime <= 0) {
+            setTime(0);
+            (window as any).electronAPI?.sendTimerCommand('pause');
+            setIsRunning(false);
+          } else {
+            setTime(remainingTime);
+          }
+        } else { // modo 'cronometro'
+          setTime(currentElapsedTime);
+        }
+      };
+
+      electronAPI.onTimerTick(handleTick);
+
 
       // Pede o estado atual ao abrir o modal
       electronAPI.sendTimerCommand('get-state');
@@ -101,7 +115,7 @@ const StopwatchModal: React.FC<StopwatchModalProps> = ({ isOpen, onClose, onSave
         electronAPI.removeTimerTickListeners();
       }
     };
-  }, [isOpen]);
+  }, [isOpen, mode, initialTimerTime]);
 
   const handlePlay = () => {
     (window as any).electronAPI?.sendTimerCommand('start');
@@ -123,10 +137,16 @@ const StopwatchModal: React.FC<StopwatchModalProps> = ({ isOpen, onClose, onSave
     (window as any).electronAPI?.sendTimerCommand('pause');
     setIsRunning(false);
     
-    // Calcula apenas o tempo decorrido NESTA sessão
-    const elapsedTimeInSession = time - sessionStartTime;
+    let elapsedTime = 0;
+    if (mode === 'timer') {
+      // Em modo timer, o tempo decorrido é o tempo inicial menos o tempo restante.
+      elapsedTime = initialTimerTime - time;
+    } else { // modo 'cronometro'
+      // Em modo cronômetro, o estado 'time' já representa o tempo decorrido.
+      elapsedTime = time;
+    }
     
-    onSaveAndClose(Math.max(0, elapsedTimeInSession), selectedSubject, selectedTopic);
+    onSaveAndClose(Math.max(0, elapsedTime), selectedSubject, selectedTopic);
     
     // Opcional: Resetar o timer global após salvar
     // (window as any).electronAPI?.sendTimerCommand('reset');
@@ -134,15 +154,21 @@ const StopwatchModal: React.FC<StopwatchModalProps> = ({ isOpen, onClose, onSave
   // --- FIM DA NOVA LÓGICA ---
 
   useEffect(() => {
+    // Pausa e reseta o timer do backend toda vez que o modo é trocado
+    (window as any).electronAPI?.sendTimerCommand('reset');
+    setIsRunning(false);
+    
     if (mode === 'timer') {
-      const initialMs = targetDuration * 60 * 1000;
-      // A lógica do timer agora é mais complexa e gerenciada pelo main process
-      // Esta parte pode precisar de ajuste se o modo timer for usado com o IPC
+      // Se nenhuma duração for fornecida, usa 25 minutos como padrão (Pomodoro)
+      const initialMs = targetDuration > 0 ? targetDuration * 60 * 1000 : 25 * 60 * 1000;
       setTime(initialMs);
       setInitialTimerTime(initialMs);
       setDisplayTimeInput(formatTime(initialMs));
     } else {
-      // No modo cronômetro, o tempo virá do processo principal
+      // Reseta o estado para o modo cronômetro, começando do zero
+      setTime(0);
+      setInitialTimerTime(0);
+      setSessionStartTime(0);
     }
   }, [mode, targetDuration]);
 
@@ -270,7 +296,7 @@ const StopwatchModal: React.FC<StopwatchModalProps> = ({ isOpen, onClose, onSave
         </div>
 
         <p className="text-sm text-gray-400 dark:text-gray-300 text-right mb-2">
-          {mode === 'timer' ? formatProgressText(time, initialTimerTime) : ''}
+          {mode === 'timer' ? formatProgressText(initialTimerTime - time, initialTimerTime) : ''}
         </p>
         <div className="w-full bg-gray-800/50 rounded-full h-8 mb-4 shadow-inner overflow-hidden dark:bg-gray-700/50">
           {mode === 'timer' ? (
@@ -306,7 +332,7 @@ const StopwatchModal: React.FC<StopwatchModalProps> = ({ isOpen, onClose, onSave
               className="text-8xl font-mono font-bold text-center tracking-wider bg-transparent border-none focus:outline-none focus:ring-0 w-full text-amber-500 dark:text-amber-300"
             />
           ) : (
-            <div className="text-8xl font-mono font-bold text-center tracking-wider text-amber-500 dark:text-amber-300">
+            <div className="text-8xl font-mono font-bold text-center tracking-wider text-amber-500 dark:text-amber-300 w-full">
               {formatTime(time)}
             </div>
           )}
