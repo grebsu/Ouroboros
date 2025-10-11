@@ -28,15 +28,19 @@ Assista a uma breve introdução da aplicação e suas funcionalidades no vídeo
 
 **[➡️ Assistir à introdução no YouTube](https://youtu.be/nKAGOVKF7A8?si=D0Oa3fFRNpJWIz3W)**
 
+Confira também o tutorial completo para aprender a usar todas as ferramentas:
+
+**[➡️ Tutorial Completo no YouTube](https://youtu.be/vAGiZICjqSM)**
+
 ## 📥 Download
 
 A versão mais recente da aplicação para desktop (Windows e Linux) pode ser baixada aqui:
 
-**[➡️ Baixar Ouroboros v1.1.0](https://drive.google.com/drive/folders/11sRwz3AJHYYy7S5gK6Up_3oEkFQSHd0J?usp=sharing)**
+**[➡️ Baixar Ouroboros v1.1.0](https://github.com/grebsu/Ouroboros/releases/tag/v1.1.0)**
 
 ## 💖 Apoie o Projeto
 
-Se o Ouroboros te ajudou nos seus estudos, considere apoiar o projeto com uma doação! Sua contribuição ajuda a manter o desenvolvimento contínuo, a implementação de novas funcionalidades e a correção de bugs. Qualquer valor é muito bem-vindo e faz uma grande diferença.
+Se o Ouroboros te ajudou nos seus estudos, considere apoiar o projeto com uma doação! Sua contribuição ajuda a manter o desenvolvimento contínuo, a implementação de novas funcionalidades e a correção de bugs. O projeto visa ajudar estudantes hipossuficientes a ter acesso a uma ferramenta de estudos poderosa, visando democratizar o estudo. Qualquer valor é muito bem-vindo e faz uma grande diferença.
 
 Você pode doar escaneando o QR Code abaixo com seu aplicativo de banco:
 
