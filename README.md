@@ -34,6 +34,19 @@ A versão mais recente da aplicação para desktop (Windows e Linux) pode ser ba
 
 **[➡️ Baixar Ouroboros v1.1.0](https://drive.google.com/drive/folders/11sRwz3AJHYYy7S5gK6Up_3oEkFQSHd0J?usp=sharing)**
 
+## 💖 Apoie o Projeto
+
+Se o Ouroboros te ajudou nos seus estudos, considere apoiar o projeto com uma doação! Sua contribuição ajuda a manter o desenvolvimento contínuo, a implementação de novas funcionalidades e a correção de bugs. Qualquer valor é muito bem-vindo e faz uma grande diferença.
+
+Você pode doar escaneando o QR Code abaixo com seu aplicativo de banco:
+
+<p align="center">
+  <img src="public/qrcode-pix.png" alt="QR Code PIX para doação" width="200">
+</p>
+
+Muito obrigado pelo seu apoio!
+
+
 ## ✨ Funcionalidades
 
 - **Planejamento de Estudos por Ciclos:** Crie e gerencie ciclos de estudo com base em editais ou objetivos específicos.
@@ -123,21 +136,26 @@ Para executar a aplicação usando a imagem pré-construída do Docker Hub:
 
 #### Construindo e Executando a Versão Desktop (Electron)
 
-Para construir e executar a aplicação como um aplicativo de desktop (Linux, Windows, macOS) usando Electron:
+Para construir e executar a aplicação como um aplicativo de desktop (Linux, Windows) usando Electron, siga os passos abaixo. Certifique-se de que todas as dependências gerais do projeto já foram instaladas com `npm install`.
 
-1.  **Instale as dependências do Electron:**
+1.  **Configuração Inicial:**
+    Este comando prepara o ambiente e pode ser necessário para garantir que tudo funcione corretamente.
     ```bash
-    npm install electron electron-builder --save-dev
+    npm run setup
     ```
-2.  **Inicie o aplicativo Electron em modo de desenvolvimento:**
+
+2.  **Executar em Modo de Desenvolvimento:**
+    Para iniciar o aplicativo Electron em modo de desenvolvimento com hot-reload.
     ```bash
     npm run dev:electron
     ```
-3.  **Construa o aplicativo para produção:**
+
+3.  **Construir para Produção:**
+    Para gerar os pacotes de instalação para produção (ex: `.deb`, `.AppImage` para Linux; `.exe` para Windows).
     ```bash
     npm run build:electron
     ```
-    Os pacotes de instalação (ex: `.deb`, `.AppImage` para Linux; `.exe` para Windows) serão gerados na pasta `dist/`.
+    Os arquivos finais serão gerados na pasta `dist/`.
 ## 🤝 Contribuição
 
 Contribuições são muito bem-vindas! Se você tiver ideias, sugestões ou quiser reportar um bug, por favor, abra uma issue ou envie um pull request.
