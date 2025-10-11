@@ -812,41 +812,70 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [subjects, setSubjects] = useState<EditalSubject[]>([]);
   const [isPlanDataLoaded, setIsPlanDataLoaded] = useState(false);
 
-  const recalculateCycleProgress = useCallback((currentStudyRecords: StudyRecord[]) => {
-    if (!studyCycle) return;
+  const calculateProgressValues = (currentStudyRecords: StudyRecord[], currentStudyCycle: StudySession[] | null) => {
+    if (!currentStudyCycle || currentStudyCycle.length === 0) {
+      return { numCompletedCycles: 0, progressInCurrentCycle: 0, newSessionProgressMap: {}, totalCycleDuration: 0 };
+    }
+  
+    let totalProgressMinutes = 0;
+    const sortedRecords = [...currentStudyRecords].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    let newCurrentProgressMinutes = 0;
-    const newSessionProgressMap: { [key: string]: number } = {};
-
-    studyCycle.forEach(session => {
-      newSessionProgressMap[session.id as string] = 0;
-    });
-
-    currentStudyRecords.forEach(record => {
+    sortedRecords.forEach(record => {
       if (record.countInPlanning) {
-        const durationInMinutes = record.studyTime / 60000;
-        newCurrentProgressMinutes += durationInMinutes;
+        totalProgressMinutes += record.studyTime / 60000;
+      }
+    });
+  
+    const totalCycleDuration = currentStudyCycle.reduce((acc, s) => acc + s.duration, 0);
+  
+    if (totalCycleDuration > 0) {
+      const numCompletedCycles = Math.floor(totalProgressMinutes / totalCycleDuration);
+      
+      // --- New logic for "Zerar Tudo" ---
+      let progressInCurrentCycle = 0;
+      const newSessionProgressMap: { [key: string]: number } = {};
+      currentStudyCycle.forEach(session => {
+        newSessionProgressMap[session.id as string] = 0;
+      });
 
-        for (const session of studyCycle) {
-          if (session.subjectId === record.subjectId) { // Usa subjectId
-            const currentSessionProgress = newSessionProgressMap[session.id as string] || 0;
-            const remainingCapacity = session.duration - currentSessionProgress;
+      let cumulativeTime = 0;
+      let startProcessingForNewCycle = false;
+      const boundaryTime = totalCycleDuration * numCompletedCycles;
 
-            if (remainingCapacity > 0) {
-              const amountToDistribute = Math.min(durationInMinutes, remainingCapacity);
-              newSessionProgressMap[session.id as string] = currentSessionProgress + amountToDistribute;
-              if (amountToDistribute === durationInMinutes) {
-                break;
+      for (const record of sortedRecords) {
+        if (!record.countInPlanning) continue;
+
+        const recordDuration = record.studyTime / 60000;
+        
+        if (startProcessingForNewCycle) {
+          // This record is fully in the new cycle.
+          progressInCurrentCycle += recordDuration; // Add its full duration to the new cycle's progress.
+
+          // Distribute its time to the session map.
+          for (const session of currentStudyCycle) {
+            if (session.subjectId === record.subjectId) {
+              const currentSessionProgress = newSessionProgressMap[session.id as string] || 0;
+              if (currentSessionProgress < session.duration) {
+                const remainingCapacity = session.duration - currentSessionProgress;
+                const amountToDistribute = Math.min(recordDuration, remainingCapacity);
+                newSessionProgressMap[session.id as string] += amountToDistribute;
+                break; // Record contributes to only one session
               }
             }
           }
+        } else if (cumulativeTime + recordDuration > boundaryTime) {
+          // This record crosses the boundary. Ignore it and start fresh with the next one.
+          startProcessingForNewCycle = true;
         }
+        cumulativeTime += recordDuration;
       }
-    });
-
-    setCurrentProgressMinutes(newCurrentProgressMinutes);
-    setSessionProgressMap(newSessionProgressMap);
-  }, [studyCycle]);
+      // --- End of new logic ---
+      
+      return { numCompletedCycles, progressInCurrentCycle, newSessionProgressMap, totalCycleDuration };
+    }
+  
+    return { numCompletedCycles: 0, progressInCurrentCycle: 0, newSessionProgressMap: {}, totalCycleDuration: 0 };
+  };
 
   const setSelectedDataFile = useCallback((fileName: string) => {
     if (fileName !== selectedDataFile) {
@@ -1034,7 +1063,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         }
         setLoading(false);
         setIsPlanDataLoaded(true);
-        recalculateCycleProgress(records);
       }
     }
     loadRecordsForSelectedFile();
@@ -1060,33 +1088,55 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     updateStats();
   }, [studyRecords, selectedDataFile, activeFilters, studyPlans, availablePlans, consistencyOffset, studyDays, studyCycle]);
 
+
+
+  const [isAnimatingCompletion, setIsAnimatingCompletion] = useState(false);
+
+  // Controller useEffect
   useEffect(() => {
-    if (!studyCycle || cycleJustCompleted) return;
+    if (!studyCycle || !studyRecords || isAnimatingCompletion) return;
 
-    if (studyCycle.length === 0) return;
+    const { numCompletedCycles, progressInCurrentCycle, newSessionProgressMap } = calculateProgressValues(studyRecords, studyCycle);
 
-    const allSessionsCompleted = studyCycle.every(session => 
-      (sessionProgressMap[session.id as string] || 0) >= session.duration
-    );
-
-    if (allSessionsCompleted && Object.keys(sessionProgressMap).length > 0) {
-        setCompletedCycles(prev => prev + 1);
-        setCycleJustCompleted(true);
+    if (numCompletedCycles > completedCycles) {
+      setIsAnimatingCompletion(true);
+    } else {
+      // Normal update
+      if (numCompletedCycles < completedCycles) {
+        setCompletedCycles(numCompletedCycles);
+      }
+      setCurrentProgressMinutes(progressInCurrentCycle);
+      setSessionProgressMap(newSessionProgressMap);
     }
-  }, [sessionProgressMap, studyCycle, cycleJustCompleted]);
+  }, [studyRecords, studyCycle, completedCycles, isAnimatingCompletion]);
 
+  // Animation useEffect
   useEffect(() => {
-    if (cycleJustCompleted) {
+    if (isAnimatingCompletion) {
+      const { numCompletedCycles, progressInCurrentCycle, newSessionProgressMap, totalCycleDuration } = calculateProgressValues(studyRecords, studyCycle);
+      
+      // 1. Set to 100% and show notification
+      setCurrentProgressMinutes(totalCycleDuration);
+      const fullSessionMap: { [key: string]: number } = {};
+      if (studyCycle) {
+        studyCycle.forEach(session => {
+          fullSessionMap[session.id as string] = session.duration;
+        });
+      }
+      setSessionProgressMap(fullSessionMap);
       showNotification('Parabéns! Você concluiu um ciclo de estudos completo!', 'success');
+
+      // 2. Set timer to end animation and trigger final update
       const timer = setTimeout(() => {
-        setSessionProgressMap({});
-        setCurrentProgressMinutes(0);
-        setCycleJustCompleted(false);
+        setCompletedCycles(numCompletedCycles);
+        setCurrentProgressMinutes(progressInCurrentCycle);
+        setSessionProgressMap(newSessionProgressMap);
+        setIsAnimatingCompletion(false);
       }, 2000);
 
       return () => clearTimeout(timer);
     }
-  }, [cycleJustCompleted, showNotification]);
+  }, [isAnimatingCompletion, studyRecords, studyCycle, showNotification]);
 
   const addStudyRecord = useCallback(async (record: Omit<StudyRecord, 'id' | 'subjectId'> & { subject: string }) => {
     if (!selectedDataFile) {
@@ -1107,11 +1157,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     };
     
     try {
-      setStudyRecords(prevRecords => {
-        const updatedRecords = [...prevRecords, newRecord];
-        recalculateCycleProgress(updatedRecords);
-        return updatedRecords;
-      });
+      setStudyRecords(prevRecords => [...prevRecords, newRecord]);
       await saveStudyRecord(selectedDataFile, newRecord);
       showNotification('Registro de estudo salvo com sucesso!', 'success');
 
@@ -1148,7 +1194,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       showNotification('Erro ao salvar o registro. Tente novamente.', 'error');
       setStudyRecords(prevRecords => prevRecords.filter(r => r.id !== newRecord.id));
     }
-  }, [selectedDataFile, showNotification, stats.editalData, recalculateCycleProgress]);
+  }, [selectedDataFile, showNotification, stats.editalData]);
 
   const addSimuladoRecord = useCallback(async (record: Omit<SimuladoRecord, 'id'>) => {
     if (!selectedDataFile) {
@@ -1194,11 +1240,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const updateStudyRecord = useCallback(async (record: StudyRecord) => {
     if (!selectedDataFile) return;
     await saveStudyRecord(selectedDataFile, record);
-    setStudyRecords(prevRecords => {
-      const updatedRecords = prevRecords.map(r => (r.id === record.id ? record : r));
-      recalculateCycleProgress(updatedRecords);
-      return updatedRecords;
-    });
+    setStudyRecords(prevRecords => prevRecords.map(r => (r.id === record.id ? record : r)));
 
     setReviewRecords(prevReviews => prevReviews.filter(r => r.studyRecordId !== record.id));
 
@@ -1230,21 +1272,17 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       }
       setReviewRecords(prevReviews => [...prevReviews, ...newReviewRecords]);
     }
-  }, [selectedDataFile, recalculateCycleProgress]);
+  }, [selectedDataFile]);
 
   const deleteStudyRecord = useCallback(async (id: string) => {
     if (!selectedDataFile) return;
     try {
       await deleteStudyRecordAction(selectedDataFile, id);
-      setStudyRecords(prevRecords => {
-        const updatedRecords = prevRecords.filter(r => r.id !== id);
-        recalculateCycleProgress(updatedRecords);
-        return updatedRecords;
-      });
+      setStudyRecords(prevRecords => prevRecords.filter(r => r.id !== id));
     } catch (error) {
       console.error("Failed to delete study record:", error);
     }
-  }, [selectedDataFile, recalculateCycleProgress]);
+  }, [selectedDataFile]);
 
   const updateReviewRecord = useCallback(async (record: ReviewRecord) => {
     if (!selectedDataFile) return;

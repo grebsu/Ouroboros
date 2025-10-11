@@ -378,27 +378,23 @@ export default function Planejamento() {
 
   const handleSaveRecord = useCallback(async (record: StudyRecord) => {
     try {
-      if (record.id && initialStudyRecord?.id === record.id) {
-          await updateStudyRecord(record);
+      if (record.id) {
+        await updateStudyRecord(record);
       } else {
-          await addStudyRecord(record);
+        await addStudyRecord(record);
       }
 
-      if (record.countInPlanning && currentStudySession) {
-          const durationInMinutes = record.studyTime / (60 * 1000);
-          handleCompleteSession(currentStudySession, durationInMinutes);
-      }
+      // O DataContext observa as mudanças nos registros e recalcula o progresso e as notificações automaticamente.
 
       setIsRegisterModalOpen(false);
       setInitialStudyRecord(null);
       setCurrentStudySession(null);
       setRecommendationJustification(null);
-      showNotification("Estudo registrado com sucesso!", "success");
     } catch (error) {
       console.error("Erro ao salvar registro de estudo:", error);
       showNotification("Erro ao salvar registro de estudo. Tente novamente.", "error");
     }
-  }, [initialStudyRecord, updateStudyRecord, addStudyRecord, currentStudySession, handleCompleteSession, showNotification]);
+  }, [updateStudyRecord, addStudyRecord, showNotification, setCurrentStudySession, setInitialStudyRecord]);
 
   const handleGetRecommendation = () => {
     if (!studyCycle) {
