@@ -11,3 +11,5 @@ services:
       - .:/app
       - /app/node_modules
       - /app/.next
+    environment:
+      - NEXTAUTH_SECRET=QUALQUER_TEXTO_AQUI
