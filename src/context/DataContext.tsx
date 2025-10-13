@@ -811,27 +811,28 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [topicScores, setTopicScores] = useState<TopicScore[]>([]);
   const [subjects, setSubjects] = useState<EditalSubject[]>([]);
   const [isPlanDataLoaded, setIsPlanDataLoaded] = useState(false);
+  const [cycleGenerationTimestamp, setCycleGenerationTimestamp] = useState<number | null>(null);
 
   const calculateProgressValues = (currentStudyRecords: StudyRecord[], currentStudyCycle: StudySession[] | null) => {
     if (!currentStudyCycle || currentStudyCycle.length === 0) {
       return { numCompletedCycles: 0, progressInCurrentCycle: 0, newSessionProgressMap: {}, totalCycleDuration: 0 };
     }
-  
+
     let totalProgressMinutes = 0;
-    const sortedRecords = [...currentStudyRecords].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sortedRecords = [...currentStudyRecords]
+      .filter(record => record.countInPlanning)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     sortedRecords.forEach(record => {
-      if (record.countInPlanning) {
-        totalProgressMinutes += record.studyTime / 60000;
-      }
+      totalProgressMinutes += record.studyTime / 60000;
     });
-  
+
     const totalCycleDuration = currentStudyCycle.reduce((acc, s) => acc + s.duration, 0);
-  
+
     if (totalCycleDuration > 0) {
       const numCompletedCycles = Math.floor(totalProgressMinutes / totalCycleDuration);
+      const completedCyclesTime = totalCycleDuration * numCompletedCycles;
       
-      // --- New logic for "Zerar Tudo" ---
       let progressInCurrentCycle = 0;
       const newSessionProgressMap: { [key: string]: number } = {};
       currentStudyCycle.forEach(session => {
@@ -839,41 +840,45 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       });
 
       let cumulativeTime = 0;
-      let startProcessingForNewCycle = false;
-      const boundaryTime = totalCycleDuration * numCompletedCycles;
 
       for (const record of sortedRecords) {
-        if (!record.countInPlanning) continue;
-
         const recordDuration = record.studyTime / 60000;
-        
-        if (startProcessingForNewCycle) {
-          // This record is fully in the new cycle.
-          progressInCurrentCycle += recordDuration; // Add its full duration to the new cycle's progress.
+        const previousCumulativeTime = cumulativeTime;
+        cumulativeTime += recordDuration;
 
-          // Distribute its time to the session map.
-          for (const session of currentStudyCycle) {
-            if (session.subjectId === record.subjectId) {
-              const currentSessionProgress = newSessionProgressMap[session.id as string] || 0;
-              if (currentSessionProgress < session.duration) {
-                const remainingCapacity = session.duration - currentSessionProgress;
-                const amountToDistribute = Math.min(recordDuration, remainingCapacity);
-                newSessionProgressMap[session.id as string] += amountToDistribute;
-                break; // Record contributes to only one session
+        if (cumulativeTime <= completedCyclesTime) {
+          continue;
+        }
+
+        let timeToProcessInCurrentCycle = recordDuration;
+        if (previousCumulativeTime < completedCyclesTime) {
+          timeToProcessInCurrentCycle = cumulativeTime - completedCyclesTime;
+        }
+        
+        progressInCurrentCycle += timeToProcessInCurrentCycle;
+        let remainingTimeToDistribute = timeToProcessInCurrentCycle;
+
+        for (const session of currentStudyCycle) {
+          if (session.subjectId === record.subjectId) {
+            const currentSessionProgress = newSessionProgressMap[session.id as string] || 0;
+            if (currentSessionProgress < session.duration) {
+              const remainingCapacity = session.duration - currentSessionProgress;
+              const amountToDistribute = Math.min(remainingTimeToDistribute, remainingCapacity);
+              
+              newSessionProgressMap[session.id as string] += amountToDistribute;
+              remainingTimeToDistribute -= amountToDistribute;
+
+              if (remainingTimeToDistribute <= 0) {
+                break;
               }
             }
           }
-        } else if (cumulativeTime + recordDuration > boundaryTime) {
-          // This record crosses the boundary. Ignore it and start fresh with the next one.
-          startProcessingForNewCycle = true;
         }
-        cumulativeTime += recordDuration;
       }
-      // --- End of new logic ---
       
       return { numCompletedCycles, progressInCurrentCycle, newSessionProgressMap, totalCycleDuration };
     }
-  
+
     return { numCompletedCycles: 0, progressInCurrentCycle: 0, newSessionProgressMap: {}, totalCycleDuration: 0 };
   };
 
@@ -983,6 +988,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           setReminderNotes(serverCycleData.reminderNotes);
           setStudyDays(serverCycleData.studyDays);
           setCompletedCycles(serverCycleData.completedCycles || 0);
+          setCycleGenerationTimestamp(serverCycleData.cycleGenerationTimestamp || null);
         }
       }
       setLoading(false);
@@ -1051,6 +1057,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           setReminderNotes(serverCycleData.reminderNotes);
           setStudyDays(serverCycleData.studyDays);
           setCompletedCycles(serverCycleData.completedCycles || 0);
+          setCycleGenerationTimestamp(serverCycleData.cycleGenerationTimestamp || null);
         } else {
           setStudyCycle(null);
           setStudyHours('40');
@@ -1060,6 +1067,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           setReminderNotes([]);
           setStudyDays(['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta']);
           setCompletedCycles(0);
+          setCycleGenerationTimestamp(null);
         }
         setLoading(false);
         setIsPlanDataLoaded(true);
@@ -1072,11 +1080,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     if (!loading && isPlanDataLoaded && selectedDataFile) {
       const cycleData = {
         studyCycle, studyHours, weeklyQuestionsGoal, currentProgressMinutes,
-        sessionProgressMap, reminderNotes, studyDays, completedCycles,
+        sessionProgressMap, reminderNotes, studyDays, completedCycles, cycleGenerationTimestamp
       };
       saveStudyCycleToFile(selectedDataFile, cycleData);
     }
-  }, [studyCycle, studyHours, weeklyQuestionsGoal, currentProgressMinutes, sessionProgressMap, reminderNotes, studyDays, completedCycles, loading, isPlanDataLoaded, selectedDataFile]);
+  }, [studyCycle, studyHours, weeklyQuestionsGoal, currentProgressMinutes, sessionProgressMap, reminderNotes, studyDays, completedCycles, cycleGenerationTimestamp, loading, isPlanDataLoaded, selectedDataFile]);
 
   useEffect(() => {
     async function updateStats() {
@@ -1096,7 +1104,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!studyCycle || !studyRecords || isAnimatingCompletion) return;
 
-    const { numCompletedCycles, progressInCurrentCycle, newSessionProgressMap } = calculateProgressValues(studyRecords, studyCycle);
+    const recordsToConsider = cycleGenerationTimestamp
+      ? studyRecords.filter(r => new Date(r.date).getTime() >= cycleGenerationTimestamp)
+      : studyRecords;
+
+    const { numCompletedCycles, progressInCurrentCycle, newSessionProgressMap } = calculateProgressValues(recordsToConsider, studyCycle);
 
     if (numCompletedCycles > completedCycles) {
       setIsAnimatingCompletion(true);
@@ -1108,7 +1120,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       setCurrentProgressMinutes(progressInCurrentCycle);
       setSessionProgressMap(newSessionProgressMap);
     }
-  }, [studyRecords, studyCycle, completedCycles, isAnimatingCompletion]);
+  }, [studyRecords, studyCycle, completedCycles, isAnimatingCompletion, cycleGenerationTimestamp]);
 
   // Animation useEffect
   useEffect(() => {
@@ -1403,9 +1415,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   }) => {
     const finalCycle = generateStudyCycleLogic(settings);
     setStudyCycle(finalCycle);
+    // Reset explícito para garantir que o novo ciclo comece do zero.
     setSessionProgressMap({});
     setCurrentProgressMinutes(0);
     setCompletedCycles(0);
+    setCycleGenerationTimestamp(Date.now());
     setStudyHours(String(settings.studyHours));
     setWeeklyQuestionsGoal(settings.weeklyQuestionsGoal);
   }, [topicScores, showNotification]);
