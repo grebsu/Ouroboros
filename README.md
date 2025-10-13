@@ -36,7 +36,7 @@ Confira também o tutorial completo para aprender a usar todas as ferramentas:
 
 A versão mais recente da aplicação para desktop (Windows e Linux) pode ser baixada aqui:
 
-**[➡️ Baixar Ouroboros v1.1.1](https://github.com/grebsu/Ouroboros/releases/tag/v1.1.1)**
+**[➡️ Baixar Ouroboros v1.1.2](https://github.com/grebsu/Ouroboros/releases/tag/v1.1.2)**
 
 ## 💖 Apoie o Projeto
 
