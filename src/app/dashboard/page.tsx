@@ -110,11 +110,11 @@ const StudyConsistencyTracker = ({
           <p className="text-gray-600 dark:text-gray-300">Você está há <span className="font-bold text-amber-500">{consecutiveDays}</span> dias sem falhar!</p>
         </div>
         <div className="flex items-center space-x-2">
-          <button onClick={onPrev} disabled={false} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-gray-700 dark:hover:bg-gray-600">
+          <button onClick={onPrev} disabled={isPrevDisabled} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-gray-700 dark:hover:bg-gray-600">
             <FaChevronLeft className="text-gray-600" />
           </button>
           <span className="text-gray-700 dark:text-gray-300 font-semibold text-sm w-28 text-center">{formatDate(startDate)} - {formatDate(endDate)}</span>
-          <button onClick={onNext} disabled={false} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-gray-700 dark:hover:bg-gray-600">
+          <button onClick={onNext} disabled={isNextDisabled} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-gray-700 dark:hover:bg-gray-600">
             <FaChevronRight className="text-gray-600" />
           </button>
         </div>
@@ -305,8 +305,8 @@ export default function DashboardPage() {
           daysData={stats.consistencyData}
           startDate={stats.consistencyStartDate}
           endDate={stats.consistencyEndDate}
-          onPrev={() => handleConsistencyNav(-1)}
-          onNext={() => handleConsistencyNav(1)}
+          onPrev={() => handleConsistencyNav(1)}
+          onNext={() => handleConsistencyNav(-1)}
           isPrevDisabled={stats.isConsistencyPrevDisabled}
           isNextDisabled={stats.isConsistencyNextDisabled}
         />

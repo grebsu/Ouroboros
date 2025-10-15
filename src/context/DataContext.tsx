@@ -502,7 +502,10 @@ const calculateStats = async (
       const dayNameToNum: { [key: string]: number } = { 'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6 };
       const studyDayNums = new Set(studyDays.map(d => dayNameToNum[d]));
       for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
-        const dateStr = d.toISOString().split('T')[0];
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
         if (studyDayNums.has(d.getDay()) && !allStudiedDays.has(dateStr)) missedStudyDays++;
       }
       failedStudyDays = missedStudyDays;
@@ -542,7 +545,12 @@ const calculateStats = async (
     for (let i = 29; i >= 0; i--) {
       const d = new Date(today); d.setDate(today.getDate() - i); d.setHours(0, 0, 0, 0);
       const isActive = d >= firstStudyDate;
-      const dateStr = d.toISOString().split('T')[0];
+      
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+
       const isStudyDay = studyDayNums.has(d.getDay());
       const studied = allStudiedDays.has(dateStr);
       let status = 'inactive';
@@ -680,6 +688,7 @@ interface DataContextType {
   availableSubjects: string[];
   availableCategories: string[];
   clearAllData: () => Promise<void>;
+  cycleGenerationTimestamp: number | null;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -1692,8 +1701,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       reminderNotes, addReminderNote, toggleReminderNote, deleteReminderNote,
       updateReminderNote, exportAllData, importAllData, deletePlan, renameSubject,
       topicScores, getRecommendedSession, updateTopicWeight, availableSubjects, availableCategories, clearAllData, refreshPlans,
-    }}>
-      {children}
+      cycleGenerationTimestamp,
+    }}>      {children}
     </DataContext.Provider>
   );
 };

@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useNotification } from '../../context/NotificationContext';
 import { FaPlay, FaPlus, FaHandSparkles } from 'react-icons/fa';
 import CycleCreationModal from '../../components/CycleCreationModal';
+import ConfirmationModal from '../../components/ConfirmationModal';
 import StudyRegisterModal from '../../components/StudyRegisterModal';
 import StopwatchModal from '../../components/StopwatchModal';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, UniqueIdentifier } from '@dnd-kit/core';
@@ -163,12 +164,17 @@ interface SortableItemProps {
     setIsStopwatchModalOpen: (isOpen: boolean) => void;
     setInitialStudyRecord: (record: Partial<StudyRecord> | null) => void;
     setIsRegisterModalOpen: (isOpen: boolean) => void;
+    isEditMode: boolean;
+    onDelete: (id: string) => void;
+    onDuplicate: (session: StudySession) => void;
+    onReset: (session: StudySession) => void;
 }
 
 const SortableItem = ({
     session, hoveredSession, setHoveredSession, sessionProgressMap, formatMinutesToHoursMinutes,
     setStopwatchTargetDuration, setStopwatchModalSubject, setCurrentStudySession,
     setIsStopwatchModalOpen, setInitialStudyRecord, setIsRegisterModalOpen,
+    isEditMode, onDelete, onDuplicate, onReset,
 }: SortableItemProps) => {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: session.id });
 
@@ -199,37 +205,58 @@ const SortableItem = ({
           <div className={`w-full bg-gray-200 dark:bg-gray-600 rounded-full ${hoveredSession === session.id ? 'h-3' : 'h-1'} transition-all duration-700 ease`}>
             <div className="bg-gradient-to-r from-amber-400 to-orange-500 h-full rounded-full" style={{ width: `${progressPercentage}%` }}></div>
           </div>
-          {hoveredSession === session.id && !isCompleted && (
-            <div className="flex space-x-4 mt-2 w-full justify-start">
-              <button
-                onClick={() => {
-                  setStopwatchTargetDuration(session.duration);
-                  setStopwatchModalSubject(session.subject);
-                  setCurrentStudySession(session);
-                  setIsStopwatchModalOpen(true);
-                }}
-                className="flex items-center text-amber-500 hover:text-amber-700 hover:underline text-sm py-1 font-bold"
-              >
-                <FaPlay className="mr-2" />
-                Iniciar Estudo
-              </button>
-              <button
-                onClick={() => {
-                  const prefilledRecord: Partial<StudyRecord> = {
-                    subject: session.subject, topic: '', category: 'teoria',
-                    countInPlanning: true, studyTime: session.duration * 60 * 1000,
-                  };
-                  setInitialStudyRecord(prefilledRecord);
-                  setCurrentStudySession(session);
-                  setIsRegisterModalOpen(true);
-                }}
-                className="text-amber-500 hover:text-amber-700 hover:underline text-sm py-1 font-bold flex items-center"
-              >
-                <FaPlus className="mr-2" />
-                Registrar Estudo Manual
-              </button>
-            </div>
-          )}
+          <div className={`flex space-x-4 mt-2 w-full ${isEditMode ? 'justify-end' : 'justify-start'}`}>
+            {isEditMode ? (
+              <>
+                <button
+                  onClick={() => onDuplicate(session)}
+                  className="text-sm font-bold text-blue-500 hover:text-blue-700 hover:underline"
+                >
+                  Duplicar
+                </button>
+                <button
+                  onClick={() => isCompleted ? onReset(session) : onDelete(session.id as string)}
+                  className="text-sm font-bold text-red-500 hover:text-red-700 hover:underline"
+                >
+                  Deletar
+                </button>
+              </>
+            ) : (
+              <>
+                {hoveredSession === session.id && !isCompleted && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setStopwatchTargetDuration(session.duration);
+                        setStopwatchModalSubject(session.subject);
+                        setCurrentStudySession(session);
+                        setIsStopwatchModalOpen(true);
+                      }}
+                      className="flex items-center text-amber-500 hover:text-amber-700 hover:underline text-sm py-1 font-bold"
+                    >
+                      <FaPlay className="mr-2" />
+                      Iniciar Estudo
+                    </button>
+                    <button
+                      onClick={() => {
+                        const prefilledRecord: Partial<StudyRecord> = {
+                          subject: session.subject, topic: '', category: 'teoria',
+                          countInPlanning: true, studyTime: session.duration * 60 * 1000,
+                        };
+                        setInitialStudyRecord(prefilledRecord);
+                        setCurrentStudySession(session);
+                        setIsRegisterModalOpen(true);
+                      }}
+                      className="text-amber-500 hover:text-amber-700 hover:underline text-sm py-1 font-bold flex items-center"
+                    >
+                      <FaPlus className="mr-2" />
+                      Registrar Estudo Manual
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -242,7 +269,7 @@ export default function Planejamento() {
     setCurrentStudySession, initialStudyRecord, setInitialStudyRecord, stopwatchTargetDuration,
     setStopwatchTargetDuration, stopwatchModalSubject, setStopwatchModalSubject,
     handleCompleteSession, currentStudySession, studyHours, setStudyHours, weeklyQuestionsGoal, 
-    setWeeklyQuestionsGoal, studyDays, setStudyDays, getRecommendedSession
+    setWeeklyQuestionsGoal, studyDays, setStudyDays, getRecommendedSession, studyRecords, deleteStudyRecord, cycleGenerationTimestamp
   } = useData();
   const { showNotification } = useNotification();
 
@@ -263,6 +290,10 @@ export default function Planejamento() {
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
   const [isClient, setIsClient] = useState(false);
   const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [subjectToAdd, setSubjectToAdd] = useState<string>('');
+  const [durationToAdd, setDurationToAdd] = useState<number>(60);
+  const [sessionToReset, setSessionToReset] = useState<StudySession | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -376,6 +407,72 @@ export default function Planejamento() {
     }
   };
 
+  const handleDeleteSession = (id: string) => {
+    if (!studyCycle) return;
+    setStudyCycle(prevCycle => prevCycle ? prevCycle.filter(s => s.id !== id) : null);
+  };
+
+  const handleDuplicateSession = (session: StudySession) => {
+    if (!studyCycle) return;
+    const newSession = { ...session, id: `${Date.now()}-session-copy` };
+    const index = studyCycle.findIndex(s => s.id === session.id);
+    if (index > -1) {
+      const newCycle = [...studyCycle];
+      newCycle.splice(index + 1, 0, newSession);
+      setStudyCycle(newCycle);
+    }
+  };
+
+  const handleAddSession = () => {
+    if (!subjectToAdd || !durationToAdd || durationToAdd <= 0) {
+      showNotification('Por favor, selecione uma matéria e uma duração válida.', 'warning');
+      return;
+    }
+
+    const subjectData = subjects.find(s => s.subject === subjectToAdd);
+    if (!subjectData) {
+      showNotification('Matéria não encontrada.', 'error');
+      return;
+    }
+
+    const newSession: StudySession = {
+      id: `${Date.now()}-session-manual`,
+      subject: subjectData.subject,
+      subjectId: subjectData.id,
+      duration: durationToAdd,
+      color: subjectData.color || '#94A3B8',
+    };
+
+    setStudyCycle(prev => prev ? [...prev, newSession] : [newSession]);
+    setSubjectToAdd('');
+  };
+
+  const handleResetSession = (session: StudySession) => {
+    setSessionToReset(session);
+  };
+
+  const confirmResetSession = async () => {
+    if (!sessionToReset || !cycleGenerationTimestamp) return;
+
+    const cycleStartDate = new Date(cycleGenerationTimestamp);
+    cycleStartDate.setUTCHours(0, 0, 0, 0);
+    const cycleStartTimestamp = cycleStartDate.getTime();
+
+    const recordsToDelete = studyRecords.filter(record => {
+      const [year, month, day] = record.date.split('-').map(Number);
+      const recordTimestamp = new Date(Date.UTC(year, month - 1, day)).getTime();
+      
+      return record.subjectId === sessionToReset.subjectId && recordTimestamp >= cycleStartTimestamp;
+    });
+
+    for (const record of recordsToDelete) {
+      await deleteStudyRecord(record.id);
+    }
+
+    showNotification(`Progresso de "${sessionToReset.subject}" foi resetado.`, 'success');
+    setSessionToReset(null);
+  };
+
   const handleSaveRecord = useCallback(async (record: StudyRecord) => {
     try {
       if (record.id) {
@@ -453,15 +550,12 @@ export default function Planejamento() {
                 Iniciar Próximo Estudo
               </span>
             </button>
-            <button onClick={() => {
-              const allSubjectsInCycle = studyCycle.map(s => s.subject);
-              const uniqueSubjects = [...new Set(allSubjectsInCycle)];
-              setSelectedSubjects(uniqueSubjects);
-              setIsModalOpen(true)
-            }} className="relative flex items-center px-4 py-2 bg-gold-500 text-white rounded-lg shadow-lg hover:bg-gold-600 transition-all duration-300 text-base font-semibold overflow-hidden group">
-              <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]"></span>
+            <button 
+              onClick={() => setIsEditMode(prev => !prev)}
+              className={`relative flex items-center px-4 py-2 text-white rounded-lg shadow-lg transition-all duration-300 text-base font-semibold overflow-hidden group ${isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gold-500 hover:bg-gold-600'}`}>
+              <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-white to-transparent opacity-30 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]"></span>
               <span className="relative flex items-center">
-                Editar
+                {isEditMode ? 'Concluir Edição' : 'Editar'}
               </span>
             </button>
             <button onClick={resetStudyCycle} className="relative flex items-center px-4 py-2 bg-gold-500 text-white rounded-lg shadow-lg hover:bg-gold-600 transition-all duration-300 text-base font-semibold overflow-hidden group">
@@ -543,6 +637,10 @@ export default function Planejamento() {
                               setIsStopwatchModalOpen={setIsStopwatchModalOpen}
                               setInitialStudyRecord={setInitialStudyRecord}
                               setIsRegisterModalOpen={setIsRegisterModalOpen}
+                              isEditMode={isEditMode}
+                              onDelete={handleDeleteSession}
+                              onDuplicate={handleDuplicateSession}
+                              onReset={handleResetSession}
                             />
                         ))
                     ) : activeTab === 'pending' ? (
@@ -564,6 +662,10 @@ export default function Planejamento() {
                               setIsStopwatchModalOpen={setIsStopwatchModalOpen}
                               setInitialStudyRecord={setInitialStudyRecord}
                               setIsRegisterModalOpen={setIsRegisterModalOpen}
+                              isEditMode={isEditMode}
+                              onDelete={handleDeleteSession}
+                              onDuplicate={handleDuplicateSession}
+                              onReset={handleResetSession}
                             />
                         ))
                     ) : activeTab === 'completed' ? (
@@ -572,6 +674,29 @@ export default function Planejamento() {
                   </SortableContext>
                 </DndContext>
               </div>
+              {isEditMode && activeTab === 'pending' && (
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center gap-4">
+                  <select
+                    value={subjectToAdd}
+                    onChange={(e) => setSubjectToAdd(e.target.value)}
+                    className="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md p-2 focus:ring-amber-500 focus:border-amber-500 flex-grow"
+                  >
+                    <option value="">Selecione uma matéria</option>
+                    {subjects.map(s => <option key={s.id} value={s.subject}>{s.subject}</option>)}                  </select>
+                  <input
+                    type="number"
+                    value={durationToAdd}
+                    onChange={(e) => setDurationToAdd(Number(e.target.value))}
+                    className="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md p-2 w-24 focus:ring-amber-500 focus:border-amber-500"
+                    min="15"
+                    step="15"
+                  />
+                  <span className="text-gray-600 dark:text-gray-300">min</span>
+                  <button onClick={handleAddSession} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                    Adicionar
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -649,6 +774,14 @@ export default function Planejamento() {
           maxSession,
           studyDays,
         } : undefined}
+      />
+
+      <ConfirmationModal
+        isOpen={!!sessionToReset}
+        onClose={() => setSessionToReset(null)}
+        onConfirm={confirmResetSession}
+        title="Resetar Progresso da Matéria"
+        message={`Você tem certeza que deseja resetar o progresso de "${sessionToReset?.subject}"? Todos os registros de estudo para esta matéria no ciclo atual serão permanentemente excluídos.`}
       />
     </div>
   );
