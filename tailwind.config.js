@@ -23,10 +23,21 @@ module.exports = {
         float: {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-8px)' },
+        },
+        'bright-pulse': {
+          '0%, 100%': {
+            filter: 'drop-shadow(0 0 2px #fbbf24)',
+            transform: 'scale(1)'
+          },
+          '50%': {
+            filter: 'drop-shadow(0 0 6px #fbbf24)',
+            transform: 'scale(1.1)'
+          }
         }
       },
       animation: {
         float: 'float 3s ease-in-out infinite',
+        'bright-pulse': 'bright-pulse 2s ease-in-out infinite',
       },
       colors: {
         gold: {

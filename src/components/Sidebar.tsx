@@ -72,7 +72,7 @@ const Sidebar = () => {
             </li>
             <li className="mb-2">
               <button onClick={openModal} className={`w-full flex items-center p-2 rounded-md hover:bg-amber-600 transition-colors duration-200 dark:hover:bg-gray-700 dark:focus:ring-gray-500 dark:text-gray-100`}>
-                <FaHeart className="mr-2" />Apoie o Projeto
+                <FaHeart className="mr-2 text-gold-400 animate-bright-pulse" />Apoie o Projeto
               </button>
             </li>
             <li className="mb-2">
