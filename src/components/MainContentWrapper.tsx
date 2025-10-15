@@ -9,10 +9,10 @@ const MainContentWrapper = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <main
-      className={`transition-all duration-300 ease-in-out ${isSidebarExpanded ? 'ml-72' : 'ml-0'} relative bg-gray-100 dark:bg-gray-900 min-h-screen`}
+      className={`transition-all duration-300 ease-in-out ${isSidebarExpanded ? 'ml-72' : 'ml-0'} relative bg-gray-100 dark:bg-gray-900 h-[calc(100vh-2rem)] overflow-y-auto`}
     >
       {!isSidebarExpanded && (
-        <button onClick={toggleSidebar} className="fixed top-4 left-0 py-2 px-6 bg-gold-500 text-white rounded-tr-full rounded-br-full shadow-md focus:outline-none focus:ring-2 focus:ring-gold-600 z-50 transition-all duration-300 ease-in-out dark:bg-gray-800 dark:focus:ring-gold-500">
+        <button onClick={toggleSidebar} className="fixed top-10 left-0 py-2 px-6 bg-gold-500 text-white rounded-tr-full rounded-br-full shadow-md focus:outline-none focus:ring-2 focus:ring-gold-600 z-50 transition-all duration-300 ease-in-out dark:bg-gray-800 dark:focus:ring-gold-500">
           <BsList size={24} />
         </button>
       )}

@@ -4,6 +4,15 @@
 @tailwind components;
 @tailwind utilities;
 
+.draggable-region {
+  -webkit-app-region: drag;
+  background-color: var(--title-bar-bg);
+}
+
+body {
+  overflow: hidden;
+}
+
 @layer base {
   html {
     @apply text-gray-900 bg-gray-50;

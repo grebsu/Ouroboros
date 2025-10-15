@@ -35,6 +35,22 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
+  useEffect(() => {
+    // Sincroniza a cor da barra de título do Electron com o tema
+    const lightBg = '#f59e0b';
+    const darkBg = '#1F2937';
+    const titleBarBg = theme === 'light' ? lightBg : darkBg;
+    document.documentElement.style.setProperty('--title-bar-bg', titleBarBg);
+
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      const colors = theme === 'light'
+        ? { background: lightBg, symbols: '#FFFFFF' }       // Cores do modo claro
+        : { background: darkBg, symbols: '#F3F4F6' };      // Cores do modo escuro
+      
+      (window as any).electronAPI.updateTitlebarColor(colors);
+    }
+  }, [theme]); // Executa sempre que o tema muda
+
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);

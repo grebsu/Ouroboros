@@ -1105,7 +1105,15 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     if (!studyCycle || !studyRecords || isAnimatingCompletion) return;
 
     const recordsToConsider = cycleGenerationTimestamp
-      ? studyRecords.filter(r => new Date(r.date).getTime() >= cycleGenerationTimestamp)
+      ? studyRecords.filter(r => {
+          const [year, month, day] = r.date.split('-').map(Number);
+          const recordDate = new Date(Date.UTC(year, month - 1, day));
+          
+          const cycleDate = new Date(cycleGenerationTimestamp);
+          cycleDate.setUTCHours(0, 0, 0, 0);
+
+          return recordDate.getTime() >= cycleDate.getTime();
+        })
       : studyRecords;
 
     const { numCompletedCycles, progressInCurrentCycle, newSessionProgressMap } = calculateProgressValues(recordsToConsider, studyCycle);

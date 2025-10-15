@@ -313,10 +313,10 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6 w-full mt-6">
-        <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 md:col-span-3">
+        <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 md:col-span-3 flex flex-col">
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">Painel de Desempenho</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white dark:bg-gray-800">
+          <div className="overflow-x-auto overflow-y-auto flex-1">
+            <table className="min-w-full bg-white dark:bg-gray-800 table-fixed">
               <thead className="bg-gray-100 dark:bg-gray-900">
                 <tr>
                   <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600 dark:text-amber-200 uppercase tracking-wider">Disciplina</th>
@@ -339,8 +339,8 @@ export default function DashboardPage() {
 
                   return (
                     <tr key={index} className="hover:bg-gray-50 transition-colors duration-200">
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <span className="font-medium text-gray-800 dark:text-gray-200">{subjectName}</span>
+                      <td className="py-4 px-4 whitespace-nowrap max-w-sm">
+                        <span className="block overflow-hidden text-ellipsis font-medium text-gray-800 dark:text-gray-200">{subjectName}</span>
                       </td>
                       <td className="py-4 px-4 text-center text-gray-600 dark:text-gray-300">{formatHours(subjectStats.totalStudyTime)}</td>
                       <td className="py-4 px-4 text-center">

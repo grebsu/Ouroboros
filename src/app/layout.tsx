@@ -28,6 +28,7 @@ export default function RootLayout({
       <body
         className="antialiased"
       >
+        <div className="h-8 w-full draggable-region" />
         <Providers>
           <SidebarProvider>
             <NotificationProvider>

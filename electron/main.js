@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, Menu } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const fsp = fs.promises;
@@ -66,6 +66,15 @@ ipcMain.on('timer-command', (event, command) => {
        break;
   }
 });
+
+ipcMain.on('update-titlebar-color', (event, colors) => {
+  if (mainWindow) {
+    mainWindow.setTitleBarOverlay({
+      color: colors.background,
+      symbolColor: colors.symbols
+    });
+  }
+});
 // --- FIM DA LÓGICA DO TIMER ---
 
 async function ensureDataDir(dataDir) {
@@ -112,6 +121,11 @@ function createWindow() {
       nodeIntegration: false,
       preload: path.join(__dirname, 'preload.js') // Adiciona o preload script
     },
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#f59e0b', // Cor da sidebar no modo claro
+      symbolColor: '#FFFFFF' // Cor dos ícones (maximizar, fechar, etc)
+    }
   });
 
   mainWindow.loadURL(startURL);
@@ -135,6 +149,9 @@ app.whenReady().then(async () => {
   if (!isDev) {
     await startNextServer();
   }
+
+  // Remove o menu da aplicação
+  Menu.setApplicationMenu(null);
 
   createWindow();
 
