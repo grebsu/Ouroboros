@@ -1,6 +1,7 @@
 {
   "name": "ouroboros",
-  "version": "1.1.2",
+  "description": "Aplicação open-source e gratuita de planejamento de estudos, projetada para ajudar estudantes e concurseiros a otimizar sua rotina, com foco na democratização do acesso a ferramentas de alta performance.",
+  "version": "1.1.3",
   "homepage": "https://github.com/grebsu/Ouroboros",
   "author": {
     "name": "Grebsu",
