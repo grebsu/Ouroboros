@@ -6,6 +6,7 @@ import { useData, EditalTopic } from '../context/DataContext';
 import { useNotification } from '../context/NotificationContext';
 import { StudyRecord } from '@/context/DataContext';
 import AddReviewModal from './AddReviewModal';
+import AddSubjectModal from './AddSubjectModal';
 import { FaInfoCircle } from 'react-icons/fa';
 
 // --- INTERFACES HIERÁRQUICAS ATUALIZADAS ---
@@ -156,7 +157,7 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
     return 0;
   };
 
-  const { selectedDataFile, deleteStudyRecord, cycleGenerationTimestamp } = useData();
+  const { selectedDataFile, deleteStudyRecord, cycleGenerationTimestamp, saveSubject } = useData();
   const { showNotification } = useNotification();
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -178,6 +179,7 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isAddReviewModalOpen, setIsAddReviewModalOpen] = useState(false);
+  const [isAddSubjectModalOpen, setIsAddSubjectModalOpen] = useState(false);
 
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isSubjectDropdownOpen, setIsSubjectDropdownOpen] = useState(false);
@@ -377,6 +379,18 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
     setIsAddReviewModalOpen(false);
   };
 
+  const handleAddSubject = async (subjectName: string, topics: Topic[], color: string) => {
+    if (!saveSubject) return;
+
+    const result = await saveSubject({ subject: subjectName, topics, color });
+
+    if (result.success) {
+      setIsAddSubjectModalOpen(false);
+      setSelectedSubject(subjectName);
+      // A atualização da lista de matérias agora é tratada pelo refreshPlans no DataContext
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -405,8 +419,8 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
               <button onClick={() => setShowDatePicker(true)} className={`py-2 px-4 rounded-lg font-semibold ${showDatePicker ? 'bg-gold-600 text-white dark:bg-gold-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600'}`}>Outro</button>
               {showDatePicker && <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="py-2 px-3 rounded-lg font-semibold border-gray-300 border focus:outline-none focus:ring-gold-500 focus:border-gold-500 text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100" />}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-2">
                 <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Categoria</label>
                 <div className="relative" ref={categoryDropdownRef}>
                   <button type="button" onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)} className={`mt-1 block w-full pl-3 pr-10 py-2 text-left text-base border-2 ${errors.category ? 'border-red-500' : 'border-gold-500 dark:border-gold-700'} focus:outline-none focus:ring-gold-500 focus:border-gold-500 sm:text-sm rounded-md bg-white dark:bg-gray-700 dark:text-gray-100`}>
@@ -425,22 +439,25 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
                 </div>
                 {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
               </div>
-              <div>
+              <div className="md:col-span-2">
                 <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Disciplina</label>
-                <div className="relative" ref={subjectDropdownRef}>
-                  <button type="button" onClick={() => setIsSubjectDropdownOpen(!isSubjectDropdownOpen)} className={`mt-1 block w-full pl-3 pr-10 py-2 text-left text-base border-2 ${errors.subject ? 'border-red-500' : 'border-gold-500 dark:border-gold-700'} focus:outline-none focus:ring-gold-500 focus:border-gold-500 sm:text-sm rounded-md bg-white dark:bg-gray-700 dark:text-gray-100`}>
-                    <span className="block truncate text-gray-700 dark:text-gray-100">{selectedSubject || 'Selecione...'}</span>
-                    <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2"><svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.67-2.66a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z" clipRule="evenodd" /></svg></span>
-                  </button>
-                  {isSubjectDropdownOpen && (
-                    <div className="absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
-                      {subjects.map((sub, index) => (
-                        <div key={index} onClick={() => { setSelectedSubject(sub.subject); setIsSubjectDropdownOpen(false); }} className="text-gray-900 dark:text-gray-200 cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gold-100 dark:hover:bg-gold-800">
-                          <span className="block whitespace-normal">{sub.subject}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-grow" ref={subjectDropdownRef}>
+                    <button type="button" onClick={() => setIsSubjectDropdownOpen(!isSubjectDropdownOpen)} className={`mt-1 block w-full pl-3 pr-10 py-2 text-left text-base border-2 ${errors.subject ? 'border-red-500' : 'border-gold-500 dark:border-gold-700'} focus:outline-none focus:ring-gold-500 focus:border-gold-500 sm:text-sm rounded-md bg-white dark:bg-gray-700 dark:text-gray-100`}>
+                      <span className="block truncate text-gray-700 dark:text-gray-100">{selectedSubject || 'Selecione...'}</span>
+                      <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2"><svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.67-2.66a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z" clipRule="evenodd" /></svg></span>
+                    </button>
+                    {isSubjectDropdownOpen && (
+                      <div className="absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                        {subjects.map((sub, index) => (
+                          <div key={index} onClick={() => { setSelectedSubject(sub.subject); setIsSubjectDropdownOpen(false); setSelectedTopic(''); }} className="text-gray-900 dark:text-gray-200 cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gold-100 dark:hover:bg-gold-800">
+                            <span className="block whitespace-normal">{sub.subject}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={() => setIsAddSubjectModalOpen(true)} className="mt-1 bg-gold-500 hover:bg-gold-600 text-white font-bold py-2 px-3 rounded-md text-lg dark:bg-gold-600 dark:hover:bg-gold-700">+</button>
                 </div>
                 {errors.subject && <p className="mt-1 text-sm text-red-600">{errors.subject}</p>}
               </div>
@@ -575,6 +592,11 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
           </div>
         </div>
         {isAddReviewModalOpen && (<AddReviewModal isOpen={isAddReviewModalOpen} onClose={() => setIsAddReviewModalOpen(false)} onSave={handleAddReview} />)}
+        <AddSubjectModal 
+          isOpen={isAddSubjectModalOpen}
+          onClose={() => setIsAddSubjectModalOpen(false)}
+          onSave={handleAddSubject}
+        />
       </div>
     </>
   );

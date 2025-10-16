@@ -24,7 +24,8 @@ import {
   updateTopicWeightAction,
   migrateToSubjectIds, // Adicionada a importação da migração
   clearAllDataAction,
-  renameSubjectAction
+  renameSubjectAction,
+  addOrUpdateSubjectAction
 } from '../app/actions';
 import { useNotification } from './NotificationContext';
 
@@ -681,6 +682,7 @@ interface DataContextType {
   importAllData: (data: any) => Promise<void>;
   deletePlan: (fileName: string) => Promise<void>;
   renameSubject: (subjectId: string, newName: string) => Promise<void>;
+  saveSubject: (subjectData: { id?: string; subject: string; topics: EditalTopic[]; color: string }) => Promise<{ success: boolean; error?: string; subjectId?: string; }>;
   refreshPlans: () => Promise<void>;
   topicScores: TopicScore[];
   getRecommendedSession: (options?: { forceSubject?: string | null }) => { recommendedTopic: TopicScore | null; justification: string };
@@ -1231,7 +1233,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Falha ao salvar o registro de estudo:", error);
       showNotification('Erro ao salvar o registro. Tente novamente.', 'error');
-      setStudyRecords(prevRecords => prevRecords.filter(r => r.id !== newRecord.id));
     }
   }, [selectedDataFile, showNotification, stats.editalData]);
 
@@ -1654,44 +1655,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [selectedDataFile, showNotification, stats.editalData]);
 
-  const clearAllData = useCallback(async () => {
-    try {
-      await clearAllDataAction(); // Call the server action to delete all files
 
-      // Reset local state
-      setStudyRecords([]);
-      setReviewRecords([]);
-      setSimuladoRecords([]);
-      setStudyCycle(null);
-      setSessionProgressMap({});
-      setCurrentProgressMinutes(0);
-      setCompletedCycles(0);
-      setReminderNotes([]);
-      // Also reset selectedDataFile and availablePlans as all plans are gone
-      _setSelectedDataFile('');
-      setAvailablePlans([]);
-      setStudyPlans([]);
-
-      showNotification('Todos os dados foram apagados com sucesso!', 'success');
-    } catch (error) {
-      console.error("Falha ao apagar todos os dados:", error);
-      showNotification('Erro ao apagar todos os dados. Tente novamente.', 'error');
-      throw error; // Re-throw to be caught by the UI
-    }
-  }, [showNotification]);
-
-  const refreshPlans = useCallback(async () => {
-    if (authStatus !== 'authenticated') return;
-    setLoading(true);
-    const allPlanFiles = await getJsonFiles();
-    const planFiles = allPlanFiles.filter(plan => plan.toUpperCase() !== 'USERS.JSON');
-    setAvailablePlans(planFiles);
-
-    const planDataPromises = planFiles.map(file => getJsonContent(file));
-    const plansData = await Promise.all(planDataPromises);
-    setStudyPlans(plansData);
-    setLoading(false);
-  }, [authStatus]);
 
   const exportAllData = useCallback(async () => {
     const serverData = await exportFullBackupAction();
@@ -1733,6 +1697,73 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [showNotification]);
 
+  const refreshPlans = useCallback(async () => {
+    if (authStatus !== 'authenticated') return;
+    setLoading(true);
+    const allPlanFiles = await getJsonFiles();
+    const planFiles = allPlanFiles.filter(plan => plan.toUpperCase() !== 'USERS.JSON');
+    setAvailablePlans(planFiles);
+
+    const planDataPromises = planFiles.map(file => getJsonContent(file));
+    const plansData = await Promise.all(planDataPromises);
+    setStudyPlans(plansData);
+    setLoading(false);
+  }, [authStatus]);
+
+  const saveSubject = useCallback(async (subjectData: { id?: string; subject: string; topics: EditalTopic[]; color: string }) => {
+    if (!selectedDataFile) {
+      const errorMsg = 'Nenhum plano de estudos selecionado.';
+      showNotification(errorMsg, 'error');
+      return { success: false, error: errorMsg };
+    }
+
+    try {
+      const result = await addOrUpdateSubjectAction(selectedDataFile, subjectData);
+      if (result.success) {
+        showNotification(`Matéria "${subjectData.subject}" salva com sucesso!`, 'success');
+        await refreshPlans();
+        return { success: true, subjectId: result.subjectId };
+      } else {
+        showNotification(result.error || 'Falha ao salvar a matéria.', 'error');
+        return { success: false, error: result.error };
+      }
+    } catch (error) {
+      const errorMsg = 'Erro ao comunicar com o servidor para salvar a matéria.';
+      console.error(errorMsg, error);
+      showNotification(errorMsg, 'error');
+      return { success: false, error: errorMsg };
+    }
+  }, [selectedDataFile, showNotification, refreshPlans]);
+
+  const clearAllData = useCallback(async () => {
+    try {
+      await clearAllDataAction();
+      // Limpa o estado local para refletir a remoção dos dados
+      _setSelectedDataFile('');
+      setAvailablePlans([]);
+      setStudyPlans([]);
+      setStudyRecords([]);
+      setSimuladoRecords([]);
+      setReviewRecords([]);
+      setStudyCycle(null);
+      setSessionProgressMap({});
+      setCompletedCycles(0);
+      setCurrentProgressMinutes(0);
+      setReminderNotes([]);
+      localStorage.removeItem('selectedDataFile');
+      
+      showNotification('Todos os dados foram apagados com sucesso! A página será recarregada.', 'success');
+
+      // Recarrega a página para um estado limpo
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (error) {
+      console.error("Falha ao limpar todos os dados:", error);
+      showNotification('Erro ao apagar os dados. Tente novamente.', 'error');
+    }
+  }, [showNotification]);
+
   return (
     <DataContext.Provider value={{
       selectedDataFile, setSelectedDataFile, availablePlans, studyPlans,
@@ -1749,7 +1780,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       formatMinutesToHoursMinutes, handleCompleteSession, studyHours, setStudyHours,
       weeklyQuestionsGoal, setWeeklyQuestionsGoal, studyDays, setStudyDays,
       reminderNotes, addReminderNote, toggleReminderNote, deleteReminderNote,
-      updateReminderNote, exportAllData, importAllData, deletePlan, renameSubject,
+      updateReminderNote, exportAllData, importAllData, deletePlan, renameSubject, saveSubject,
       topicScores, getRecommendedSession, updateTopicWeight, availableSubjects, availableCategories, clearAllData, refreshPlans,
       cycleGenerationTimestamp,
     }}>      {children}

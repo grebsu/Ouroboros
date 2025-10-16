@@ -645,6 +645,53 @@ export async function renameSubjectAction(
   }
 }
 
+export async function addOrUpdateSubjectAction(
+  fileName: string,
+  subjectData: { id?: string; subject: string; topics: EditalTopic[]; color: string }
+): Promise<{ success: boolean; error?: string; subjectId?: string }> {
+  if (!fileName || !subjectData || !subjectData.subject) {
+    return { success: false, error: 'Parâmetros inválidos.' };
+  }
+
+  const userDir = await getUserDataDirectory();
+  const filePath = path.join(userDir, fileName);
+
+  try {
+    const fileContent = await fs.readFile(filePath, 'utf-8');
+    const planData: PlanData = JSON.parse(fileContent);
+
+    const existingSubjectIndex = subjectData.id 
+      ? planData.subjects.findIndex(s => s.id === subjectData.id) 
+      : -1;
+
+    if (existingSubjectIndex !== -1) {
+      // Atualizar matéria existente
+      planData.subjects[existingSubjectIndex] = { 
+        ...planData.subjects[existingSubjectIndex], 
+        ...subjectData 
+      };
+      await fs.writeFile(filePath, JSON.stringify(planData, null, 2), 'utf-8');
+      return { success: true, subjectId: subjectData.id };
+    } else {
+      // Adicionar nova matéria
+      const newId = crypto.randomUUID();
+      const newSubject: Subject = {
+        id: newId,
+        subject: subjectData.subject,
+        color: subjectData.color,
+        topics: subjectData.topics,
+      };
+      planData.subjects.push(newSubject);
+      await fs.writeFile(filePath, JSON.stringify(planData, null, 2), 'utf-8');
+      return { success: true, subjectId: newId };
+    }
+  } catch (error: any) {
+    console.error(`Erro ao salvar a matéria no arquivo ${fileName}:`, error);
+    return { success: false, error: error.message || 'Falha ao salvar a matéria.' };
+  }
+}
+
+
 export async function updateTopicWeightAction(
   fileName: string,
   subjectId: string,

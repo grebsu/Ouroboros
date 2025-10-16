@@ -179,7 +179,7 @@ const AddSubjectModal: React.FC<AddSubjectModalProps> = ({ isOpen, onClose, onSa
               id="subjectName"
               value={subjectName}
               onChange={(e) => setSubjectName(e.target.value)}
-              placeholder="Ex: Direito Constitucional"
+              placeholder="Ex: Direito Administrativo"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:ring-gold-400"
               autoFocus
             />
@@ -240,16 +240,28 @@ const AddSubjectModal: React.FC<AddSubjectModalProps> = ({ isOpen, onClose, onSa
 
         <div className="mb-4">
           <label htmlFor="topicsContent" className="block text-sm font-bold text-gold-800 dark:text-gold-300 mb-2">
-            TÓPICOS (use 2 espaços de indentação para subtópicos)
+            TÓPICOS (use 2 espaços para subtópicos e '*' no início para tópicos de agrupamento)
           </label>
           <textarea
             id="topicsContent"
             value={topicsContent}
             onChange={(e) => setTopicsContent(e.target.value)}
-            placeholder="Ex:
-1. Direito Constitucional
-  1.1. Princípios Fundamentais
-  1.2. Direitos e Garantias Fundamentais"
+            placeholder={`Ex:
+* Direito Administrativo
+  Origem, Conceito e Fontes do Direito Administrativo
+  * Regime Jurídico Administrativo
+    Regime Jurídico da Administração e Regime Jurídico Administrativo
+    Princípios expressos, explícitos ou constitucionais
+    Princípios implícitos, reconhecidos e infraconstitucionais
+  * Atos administrativos
+    Conceito de atos administrativos
+    Mérito Administrativo
+    Elementos, requisitos e pressupostos (atos administrativos)
+    Atributos ou características dos atos administrativos
+    Atos administrativos: espécies, classificação, fases de constituição
+    Desfazimento do ato administrativo (Anulação, Revogação, Cassação, Caducidade, Contraposição)
+    Convalidação e Conversão dos atos administrativos
+    Teoria dos Motivos Determinantes`}
             rows={15}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:ring-gold-400 font-mono text-sm"
           />
