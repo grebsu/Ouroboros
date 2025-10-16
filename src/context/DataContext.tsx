@@ -1115,6 +1115,16 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
     const recordsToConsider = cycleGenerationTimestamp
       ? studyRecords.filter(r => {
+          // Tenta obter o timestamp preciso do ID do registro
+          const idParts = r.id.split('-');
+          const recordTimestamp = parseInt(idParts[0], 10);
+
+          // Se o ID contiver um timestamp válido, use-o para uma filtragem precisa
+          if (!isNaN(recordTimestamp)) {
+            return recordTimestamp >= cycleGenerationTimestamp;
+          }
+
+          // Fallback para registros mais antigos ou com formato de ID diferente
           const [year, month, day] = r.date.split('-').map(Number);
           const recordDate = new Date(Date.UTC(year, month - 1, day));
           
@@ -1449,6 +1459,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     setSessionProgressMap({});
     setCurrentProgressMinutes(0);
     setCompletedCycles(0);
+    setCycleGenerationTimestamp(null); // Adicionado para limpar o timestamp
     setStudyDays(['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta']);
     showNotification('Planejamento removido. Você pode criar um novo ciclo.', 'success');
   }, [selectedDataFile, showNotification]);
@@ -1594,7 +1605,46 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const result = await renameSubjectAction(selectedDataFile, subjectId, newName);
       if (result.success) {
         showNotification(`Matéria '${oldName}' renomeada para '${newName}' com sucesso!`, 'success');
-        window.location.reload();
+        
+        // Atualização otimista do estado para evitar o reload da página
+        const planIndex = availablePlans.indexOf(selectedDataFile);
+        if (planIndex !== -1) {
+          // 1. Atualiza studyPlans
+          const updatedStudyPlans = [...studyPlans];
+          const planToUpdate = { ...updatedStudyPlans[planIndex] };
+          planToUpdate.subjects = planToUpdate.subjects.map((s: any) => 
+            s.id === subjectId ? { ...s, subject: newName } : s
+          );
+          updatedStudyPlans[planIndex] = planToUpdate;
+          setStudyPlans(updatedStudyPlans);
+
+          // 2. Atualiza studyRecords
+          setStudyRecords(prevRecords => prevRecords.map(r =>
+            r.subjectId === subjectId ? { ...r, subject: newName } : r
+          ));
+
+          // 3. Atualiza reviewRecords
+          setReviewRecords(prevReviews => prevReviews.map(rr =>
+            rr.subjectId === subjectId ? { ...rr, subject: newName } : rr
+          ));
+
+          // 4. Atualiza simuladoRecords
+          setSimuladoRecords(prevSimulados => prevSimulados.map(sr => ({
+            ...sr,
+            subjects: sr.subjects.map(ss =>
+              ss.id === subjectId ? { ...ss, subjectName: newName } : ss
+            ),
+          })));
+        }
+
+        // 5. Atualiza studyCycle
+        if (studyCycle) {
+          setStudyCycle(prevCycle =>
+            prevCycle!.map(session =>
+              session.subjectId === subjectId ? { ...session, subject: newName } : session
+            )
+          );
+        }
       } else {
         showNotification(result.error || 'Falha ao renomear a matéria.', 'error');
       }
