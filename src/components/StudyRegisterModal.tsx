@@ -180,6 +180,7 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isAddReviewModalOpen, setIsAddReviewModalOpen] = useState(false);
   const [isAddSubjectModalOpen, setIsAddSubjectModalOpen] = useState(false);
+  const [refreshSubjects, setRefreshSubjects] = useState(0);
 
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isSubjectDropdownOpen, setIsSubjectDropdownOpen] = useState(false);
@@ -249,7 +250,7 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
       }
     };
     fetchEditalData();
-  }, [selectedDataFile]);
+  }, [selectedDataFile, refreshSubjects]);
 
   useEffect(() => {
     if (selectedSubject) {
@@ -387,6 +388,7 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
     if (result.success) {
       setIsAddSubjectModalOpen(false);
       setSelectedSubject(subjectName);
+      setRefreshSubjects(prev => prev + 1);
       // A atualização da lista de matérias agora é tratada pelo refreshPlans no DataContext
     }
   };
