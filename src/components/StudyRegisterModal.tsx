@@ -156,7 +156,7 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
     return 0;
   };
 
-  const { selectedDataFile, deleteStudyRecord } = useData();
+  const { selectedDataFile, deleteStudyRecord, cycleGenerationTimestamp } = useData();
   const { showNotification } = useNotification();
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -332,6 +332,20 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
 
   const handleSave = () => {
     if (!validateForm()) return;
+
+    if (countInPlanning && cycleGenerationTimestamp) {
+      const [year, month, day] = selectedDate.split('-').map(Number);
+      const recordDate = new Date(Date.UTC(year, month - 1, day));
+  
+      const cycleCreationDate = new Date(cycleGenerationTimestamp);
+      cycleCreationDate.setUTCHours(0, 0, 0, 0);
+  
+      if (recordDate.getTime() < cycleCreationDate.getTime()) {
+        showNotification('Não é possível contabilizar um estudo anterior à criação do planejamento.', 'error');
+        return;
+      }
+    }
+
     const studyRecord: StudyRecord = {
       id: initialRecord?.id || '',
       date: selectedDate,
